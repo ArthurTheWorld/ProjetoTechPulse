@@ -43,16 +43,16 @@ techpulse_jobs/
 
 ## Funcionalidades
 
--  **Login com sessão** — autenticação simples com Flask Sessions
--  **Scraping ao vivo** — coleta vagas das 5 fontes a cada execução
--  **Cache de 5 minutos** — evita requisições desnecessárias às APIs
--  **Filtro por fonte** — RemoteOK, Remotive, Arbeitnow, Jobicy, TheMuse
--  **Filtro por senioridade** — Estágio, Júnior, Pleno, Sênior, Liderança
--  **Filtro por tecnologia** — clique nas barras do gráfico ou na sidebar
--  **Busca por cargo ou empresa** — busca em tempo real
--  **Classificação de tecnologias** — whitelist com +100 linguagens e frameworks
--  **Links diretos** — cada vaga abre o anúncio original no site da fonte
--  **Dashboard com métricas** — total de vagas, tag mais frequente, fontes ativas
+- ✅ **Login com sessão** — autenticação simples com Flask Sessions
+- ✅ **Scraping ao vivo** — coleta vagas das 5 fontes a cada execução
+- ✅ **Cache de 5 minutos** — evita requisições desnecessárias às APIs
+- ✅ **Filtro por fonte** — RemoteOK, Remotive, Arbeitnow, Jobicy, TheMuse
+- ✅ **Filtro por senioridade** — Estágio, Júnior, Pleno, Sênior, Liderança
+- ✅ **Filtro por tecnologia** — clique nas barras do gráfico ou na sidebar
+- ✅ **Busca por cargo ou empresa** — busca em tempo real
+- ✅ **Classificação de tecnologias** — whitelist com +100 linguagens e frameworks
+- ✅ **Links diretos** — cada vaga abre o anúncio original no site da fonte
+- ✅ **Dashboard com métricas** — total de vagas, tag mais frequente, fontes ativas
 
 ---
 
@@ -60,25 +60,55 @@ techpulse_jobs/
 
 ### Pré-requisitos
 
-- Python 3.8 ou superior
+- Python 3.8 ou superior — baixe em [python.org](https://www.python.org/downloads/)
 
-### 1. Instalar dependências
+### 1. Clonar ou baixar o projeto
+
+Coloque o arquivo `app.py` em uma pasta, por exemplo `techpulse_jobs/`, e abra o terminal nessa pasta.
+
+**Windows:** segure `Shift` e clique com botão direito na pasta → "Abrir janela do PowerShell aqui"  
+**Mac/Linux:** clique com botão direito na pasta → "Novo Terminal na Pasta"
+
+### 2. Criar o ambiente virtual (venv)
+
+O ambiente virtual isola as dependências do projeto para não conflitar com outros projetos Python.
+
+**Windows:**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+**Mac/Linux:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+> Você saberá que o venv está ativo quando aparecer `(venv)` no início da linha do terminal.
+
+### 3. Instalar as dependências
+
+Com o venv ativado, instale as bibliotecas necessárias:
 
 ```bash
 pip install flask feedparser requests
 ```
 
-### 2. Executar
+### 4. Executar
 
 ```bash
 python app.py
 ```
 
-### 3. Acessar no navegador
+### 5. Acessar no navegador
 
 ```
 http://localhost:5000
 ```
+
+> Para parar o servidor, pressione `Ctrl+C` no terminal.  
+> Para desativar o venv, digite `deactivate`.
 
 ### Credenciais de acesso
 
