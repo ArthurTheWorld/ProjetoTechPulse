@@ -23,7 +23,8 @@ techpulse_jobs/
 | Scraping | `requests`, `feedparser` |
 | Frontend | HTML, CSS, JavaScript (vanilla) |
 | Autenticação | Flask Sessions |
-| Cache | In-memory (5 minutos) |
+| Banco de dados | SQLite 3 (built-in do Python) |
+| Cache | TTL 5 minutos (evita scraping excessivo) |
 
 ---
 
@@ -126,14 +127,32 @@ http://localhost:5000
 ### Pipeline de dados
 
 ```
-Fontes públicas          Backend Flask          Frontend
-─────────────────        ──────────────         ─────────────────
-RemoteOK  (JSON) ──┐
-Remotive  (JSON) ──┤     /api/jobs   ──────►   Dashboard
-Arbeitnow (JSON) ──┼──►  /api/stats  ──────►   Gráficos
-Jobicy    (RSS)  ──┤     /login               Filtros
-TheMuse   (JSON) ──┘     /logout
+Fontes públicas          Backend Flask          Banco SQLite        Frontend
+─────────────────        ──────────────         ──────────────────  ─────────
+RemoteOK  (JSON) ──┐                            ┌─ users
+Remotive  (JSON) ──┤   scraping()  ──────────►  ├─ jobs             Dashboard
+Arbeitnow (JSON) ──┼►  /api/jobs  ◄──────────   ├─ jobs_tags        Gráficos
+Jobicy    (RSS)  ──┤   /api/stats ◄──────────   └─ scrape_log       Filtros
+TheMuse   (JSON) ──┘   /login
 ```
+
+### Banco de dados (SQLite)
+
+O projeto usa SQLite — já vem com o Python, sem instalar nada extra.  
+O arquivo `techpulse.db` é criado automaticamente na primeira execução.
+
+**Estrutura das tabelas:**
+
+| Tabela | O que armazena |
+|--------|---------------|
+| `users` | E-mail e senha (hash SHA-256) dos usuários |
+| `jobs` | Vagas coletadas (título, empresa, URL, fonte, senioridade...) |
+| `jobs_tags` | Tags de tecnologia de cada vaga |
+| `scrape_log` | Histórico de execuções do scraper (fonte, total, data/hora) |
+
+> Para visualizar o banco graficamente, instale o [DB Browser for SQLite](https://sqlitebrowser.org/) e abra o arquivo `techpulse.db`.
+
+**Vagas duplicadas:** a URL é usada como chave única — o scraper nunca duplica registros.
 
 ### Classificação de senioridade
 
@@ -149,7 +168,7 @@ Detectada automaticamente pelo título da vaga:
 
 ### Cache
 
-As vagas são armazenadas em memória e atualizadas a cada **5 minutos**, evitando sobrecarga nas APIs.
+O scraper roda uma vez a cada **5 minutos**. Entre as execuções, as vagas são servidas direto do banco SQLite, garantindo respostas rápidas sem sobrecarregar as APIs das fontes.
 
 ---
 
@@ -189,6 +208,6 @@ all_jobs = scrape_remoteok() + ... + scrape_nomefonte()
 ## Limitações
 
 - **LinkedIn e Indeed** bloqueiam scraping automatizado (retornam 403)
-- O cache é perdido ao reiniciar o servidor
+- O banco `techpulse.db` persiste entre reinicializações — as vagas já coletadas ficam salvas
 - A classificação de senioridade é baseada em palavras-chave — pode ter imprecisões
 - Vagas em português do Brasil são limitadas (fontes majoritariamente em inglês)
