@@ -1,78 +1,76 @@
-# TechPulse Jobs 🟣
+# TechPulse Jobs
 
-> Dashboard de vagas tech em tempo real com login, scraping de 5 fontes, filtros por tecnologia, senioridade e fonte.
+Plataforma web de monitoramento de vagas de emprego tech em tempo real, com autenticação, web scraping de cinco fontes públicas, banco de dados relacional e dashboard interativo com filtros por fonte, senioridade e tecnologia.
 
 ---
 
-## Visão Geral
-
-O TechPulse Jobs é um pipeline de web scraping que coleta vagas de emprego tech de múltiplas fontes públicas e as exibe em um dashboard interativo com autenticação. O projeto foi desenvolvido como trabalho acadêmico para demonstrar coleta, processamento e visualização de dados em tempo real.
+## Estrutura do projeto
 
 ```
 techpulse_jobs/
-└── app.py          # Tudo em um arquivo: scraping + API Flask + frontend
+└── app.py          # Aplicação completa: scraping + API Flask + frontend
 ```
+
+O projeto é composto por um único arquivo. Ao rodar, o Flask serve o frontend, executa o scraping e gerencia o banco de dados automaticamente.
 
 ---
 
-## Tecnologias Utilizadas
+## Tecnologias utilizadas
 
 | Camada | Tecnologia |
 |--------|-----------|
 | Backend | Python 3, Flask |
-| Scraping | `requests`, `feedparser` |
-| Frontend | HTML, CSS, JavaScript (vanilla) |
-| Autenticação | Flask Sessions |
-| Banco de dados | SQLite 3 (built-in do Python) |
-| Cache | TTL 5 minutos (evita scraping excessivo) |
+| Scraping | Requests, Feedparser |
+| Banco de dados | SQLite 3 (nativo do Python) |
+| Frontend | HTML, CSS, JavaScript |
+| Autenticação | Flask Sessions com senha em hash SHA-256 |
 
 ---
 
-## Fontes de Dados
+## Fontes de dados
 
 | Fonte | Tipo | Foco |
 |-------|------|------|
-| **RemoteOK** | API JSON pública | Vagas remotas globais |
-| **Remotive** | API JSON pública | Dev, DevOps, Data |
-| **Arbeitnow** | API JSON pública | Europa + remoto |
-| **Jobicy** | RSS público | Full-time tech |
-| **TheMuse** ⭐ | API JSON pública | **Entry Level / Júnior** |
+| RemoteOK | API JSON pública | Vagas remotas globais |
+| Remotive | API JSON pública | Dev, DevOps, Data |
+| Arbeitnow | API JSON pública | Europa e remoto |
+| Jobicy | RSS público | Full-time tech |
+| TheMuse | API JSON pública | Entry Level / Júnior |
 
-> ⭐ TheMuse é a única fonte com filtro nativo de `Entry Level` — ideal para quem está começando na área.
+TheMuse é a única fonte com filtro nativo de nível Entry Level, sendo a principal fonte de vagas para quem está começando na área.
 
 ---
 
 ## Funcionalidades
 
-- ✅ **Login com sessão** — autenticação simples com Flask Sessions
-- ✅ **Scraping ao vivo** — coleta vagas das 5 fontes a cada execução
-- ✅ **Cache de 5 minutos** — evita requisições desnecessárias às APIs
-- ✅ **Filtro por fonte** — RemoteOK, Remotive, Arbeitnow, Jobicy, TheMuse
-- ✅ **Filtro por senioridade** — Estágio, Júnior, Pleno, Sênior, Liderança
-- ✅ **Filtro por tecnologia** — clique nas barras do gráfico ou na sidebar
-- ✅ **Busca por cargo ou empresa** — busca em tempo real
-- ✅ **Classificação de tecnologias** — whitelist com +100 linguagens e frameworks
-- ✅ **Links diretos** — cada vaga abre o anúncio original no site da fonte
-- ✅ **Dashboard com métricas** — total de vagas, tag mais frequente, fontes ativas
+- Login com sessão e senha armazenada em hash SHA-256
+- Web scraping automático de cinco fontes públicas
+- Banco de dados SQLite com quatro tabelas e controle de duplicatas por URL
+- Cache de cinco minutos para evitar requisições desnecessárias às fontes
+- Classificação automática de senioridade pelo título da vaga
+- Filtro por fonte, senioridade e tecnologia — combinados simultaneamente
+- Busca por cargo ou empresa em tempo real
+- Whitelist de mais de 100 linguagens e tecnologias para classificação das tags
+- Links diretos para o anúncio original em cada vaga
+- Dashboard com métricas de total de vagas, fontes ativas e tecnologia mais frequente
+- Gráfico de top tecnologias clicável — filtra a lista ao clicar na barra
+- Histórico de execuções do scraper registrado no banco
 
 ---
 
-## Como Executar
+## Como executar
 
 ### Pré-requisitos
 
-- Python 3.8 ou superior — baixe em [python.org](https://www.python.org/downloads/)
+Python 3.8 ou superior. Baixe em [python.org](https://www.python.org/downloads/).
 
-### 1. Clonar ou baixar o projeto
+### 1. Abrir o terminal na pasta do projeto
 
-Coloque o arquivo `app.py` em uma pasta, por exemplo `techpulse_jobs/`, e abra o terminal nessa pasta.
+**Windows:** segure Shift e clique com botão direito na pasta, depois clique em "Abrir janela do PowerShell aqui".
 
-**Windows:** segure `Shift` e clique com botão direito na pasta → "Abrir janela do PowerShell aqui"  
-**Mac/Linux:** clique com botão direito na pasta → "Novo Terminal na Pasta"
+**Mac/Linux:** clique com botão direito na pasta e selecione "Novo Terminal na Pasta".
 
-### 2. Criar o ambiente virtual (venv)
-
-O ambiente virtual isola as dependências do projeto para não conflitar com outros projetos Python.
+### 2. Criar o ambiente virtual
 
 **Windows:**
 ```bash
@@ -86,21 +84,21 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-> Você saberá que o venv está ativo quando aparecer `(venv)` no início da linha do terminal.
+Quando o venv estiver ativo, aparece `(venv)` no início da linha do terminal.
 
 ### 3. Instalar as dependências
-
-Com o venv ativado, instale as bibliotecas necessárias:
 
 ```bash
 pip install flask feedparser requests
 ```
 
-### 4. Executar
+### 4. Rodar a aplicação
 
 ```bash
 python app.py
 ```
+
+Na primeira execução, o arquivo `techpulse.db` é criado automaticamente na mesma pasta.
 
 ### 5. Acessar no navegador
 
@@ -108,73 +106,62 @@ python app.py
 http://localhost:5000
 ```
 
-> Para parar o servidor, pressione `Ctrl+C` no terminal.  
-> Para desativar o venv, digite `deactivate`.
+Para parar o servidor, pressione `Ctrl+C` no terminal. Para desativar o venv, digite `deactivate`.
 
 ### Credenciais de acesso
 
 | E-mail | Senha |
 |--------|-------|
-| `admin@tech.com` | `123456` |
-| `aluno@facul.com` | `senha123` |
+| admin@tech.com | 123456 |
+| aluno@facul.com | senha123 |
 
-> Para adicionar usuários, edite o dicionário `USERS` no início do `app.py`.
+Para adicionar usuários, edite o dicionário `USERS` no início do `app.py` antes da primeira execução. Após rodar uma vez, os usuários ficam salvos no banco.
 
 ---
 
-## Como Funciona
+## Banco de dados
 
-### Pipeline de dados
+O arquivo `techpulse.db` é criado automaticamente ao rodar `python app.py`. Ele persiste entre reinicializações — as vagas já coletadas ficam salvas.
 
-```
-Fontes públicas          Backend Flask          Banco SQLite        Frontend
-─────────────────        ──────────────         ──────────────────  ─────────
-RemoteOK  (JSON) ──┐                            ┌─ users
-Remotive  (JSON) ──┤   scraping()  ──────────►  ├─ jobs             Dashboard
-Arbeitnow (JSON) ──┼►  /api/jobs  ◄──────────   ├─ jobs_tags        Gráficos
-Jobicy    (RSS)  ──┤   /api/stats ◄──────────   └─ scrape_log       Filtros
-TheMuse   (JSON) ──┘   /login
-```
+### Estrutura das tabelas
 
-### Banco de dados (SQLite)
+**users**
+- id, email, senha_hash, criado_em
 
-O projeto usa SQLite — já vem com o Python, sem instalar nada extra.  
-O arquivo `techpulse.db` é criado automaticamente na primeira execução.
+**jobs**
+- id, titulo, empresa, url (único), fonte, data, salario, senioridade, coletado_em
 
-**Estrutura das tabelas:**
+**jobs_tags**
+- job_id, tag
 
-| Tabela | O que armazena |
-|--------|---------------|
-| `users` | E-mail e senha (hash SHA-256) dos usuários |
-| `jobs` | Vagas coletadas (título, empresa, URL, fonte, senioridade...) |
-| `jobs_tags` | Tags de tecnologia de cada vaga |
-| `scrape_log` | Histórico de execuções do scraper (fonte, total, data/hora) |
+**scrape_log**
+- id, fonte, total, executado
 
-> Para visualizar o banco graficamente, instale o [DB Browser for SQLite](https://sqlitebrowser.org/) e abra o arquivo `techpulse.db`.
+A URL de cada vaga é usada como chave única — execuções repetidas do scraper nunca duplicam registros no banco.
 
-**Vagas duplicadas:** a URL é usada como chave única — o scraper nunca duplica registros.
+### Visualizar o banco
 
-### Classificação de senioridade
+Para inspecionar os dados graficamente, instale o [DB Browser for SQLite](https://sqlitebrowser.org/dl/), abra o programa e carregue o arquivo `techpulse.db`.
 
-Detectada automaticamente pelo título da vaga:
+---
+
+## Classificação de senioridade
+
+A senioridade é detectada automaticamente pelo título da vaga:
 
 | Nível | Palavras-chave detectadas |
 |-------|--------------------------|
 | Estágio | intern, trainee, estágio, apprentice |
 | Júnior | junior, jr, entry level, associate, graduate |
-| Pleno | *(padrão quando nenhum outro é detectado)* |
+| Pleno | padrão quando nenhum outro nível é detectado |
 | Sênior | senior, sr, staff, principal, lead, tech lead |
 | Liderança | manager, director, head of, VP, CTO |
 
-### Cache
-
-O scraper roda uma vez a cada **5 minutos**. Entre as execuções, as vagas são servidas direto do banco SQLite, garantindo respostas rápidas sem sobrecarregar as APIs das fontes.
-
 ---
 
-## Adicionando Novas Fontes
+## Como adicionar uma nova fonte
 
-Crie uma função `scrape_nomefonte()` seguindo o padrão:
+Crie uma função seguindo o padrão abaixo e inclua-a em `get_all_jobs()`:
 
 ```python
 def scrape_nomefonte():
@@ -187,7 +174,7 @@ def scrape_nomefonte():
                 "titulo":  item.get("title", ""),
                 "empresa": item.get("company", "—"),
                 "tags":    item.get("tags", [])[:4],
-                "url":     item.get("url", ""),  # URL direta para o anúncio
+                "url":     item.get("url", ""),
                 "fonte":   "NomeFonte",
                 "data":    item.get("date", "")[:10],
                 "salario": item.get("salary", "") or "—",
@@ -197,17 +184,16 @@ def scrape_nomefonte():
     return jobs
 ```
 
-Depois inclua em `get_all_jobs()`:
-
 ```python
-all_jobs = scrape_remoteok() + ... + scrape_nomefonte()
+def get_all_jobs():
+    all_jobs = scrape_remoteok() + scrape_remotive() + ... + scrape_nomefonte()
 ```
 
 ---
 
 ## Limitações
 
-- **LinkedIn e Indeed** bloqueiam scraping automatizado (retornam 403)
-- O banco `techpulse.db` persiste entre reinicializações — as vagas já coletadas ficam salvas
-- A classificação de senioridade é baseada em palavras-chave — pode ter imprecisões
-- Vagas em português do Brasil são limitadas (fontes majoritariamente em inglês)
+- LinkedIn e Indeed bloqueiam scraping automatizado e não são suportados
+- A classificação de senioridade é baseada em palavras-chave no título e pode ter imprecisões
+- Vagas em português do Brasil são limitadas — as fontes atuais são majoritariamente em inglês
+- O cache é armazenado em memória e resetado ao reiniciar o servidor, mas as vagas permanecem no banco
