@@ -6,21 +6,181 @@ Abrir: http://localhost:5000
 
 from flask import Flask, request, jsonify, session, render_template_string
 from functools import wraps
-import time, requests, feedparser
+import time, requests, feedparser, sqlite3, hashlib, os
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "techpulse-2024-secret"
 
-# ─── Usuários ────────────────────────────────────────────────────────────────
-USERS = {
-    "admin@tech.com":  "123456",
-    "aluno@facul.com": "senha123",
-}
+# ─── Banco de dados SQLite ───────────────────────────────────────────────────
+DB_PATH   = "techpulse.db"
+CACHE_TTL = 300  # segundos entre cada novo scraping
 
-# ─── Cache em memória ────────────────────────────────────────────────────────
-_cache = {"jobs": [], "ts": 0}
-CACHE_TTL = 300  # 5 minutos
+def get_db():
+    """Retorna conexão com row_factory para dicts."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def hash_senha(senha: str) -> str:
+    return hashlib.sha256(senha.encode()).hexdigest()
+
+def init_db():
+    """Cria tabelas e usuários padrão na primeira execução."""
+    conn = get_db()
+    c = conn.cursor()
+
+    c.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            email      TEXT    UNIQUE NOT NULL,
+            senha_hash TEXT    NOT NULL,
+            criado_em  TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS jobs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo      TEXT NOT NULL,
+            empresa     TEXT,
+            url         TEXT UNIQUE NOT NULL,
+            fonte       TEXT,
+            data        TEXT,
+            salario     TEXT,
+            senioridade TEXT,
+            coletado_em TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS jobs_tags (
+            job_id  INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+            tag     TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scrape_log (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            fonte      TEXT,
+            total      INTEGER,
+            executado  TEXT DEFAULT (datetime('now'))
+        );
+    """)
+
+    # Usuários padrão (só cria se não existirem)
+    usuarios = [
+        ("admin@tech.com",  "123456"),
+        ("aluno@facul.com", "senha123"),
+    ]
+    for email, senha in usuarios:
+        c.execute(
+            "INSERT OR IGNORE INTO users (email, senha_hash) VALUES (?, ?)",
+            (email, hash_senha(senha))
+        )
+
+    conn.commit()
+    conn.close()
+    print("✅ Banco inicializado em", DB_PATH)
+
+def salvar_jobs(jobs: list):
+    """Insere vagas novas no banco (ignora duplicatas pela URL)."""
+    conn = get_db()
+    c = conn.cursor()
+    inseridos = 0
+    for j in jobs:
+        try:
+            c.execute("""
+                INSERT OR IGNORE INTO jobs (titulo, empresa, url, fonte, data, salario, senioridade)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (j["titulo"], j["empresa"], j["url"], j["fonte"],
+                    j["data"], j["salario"], j["senioridade"]))
+            if c.rowcount:
+                job_id = c.lastrowid
+                for tag in j.get("tags", []):
+                    c.execute("INSERT INTO jobs_tags (job_id, tag) VALUES (?, ?)", (job_id, tag))
+                inseridos += 1
+        except Exception as e:
+            print(f"[DB] erro ao salvar vaga: {e}")
+
+    # Registra no log
+    fontes = {}
+    for j in jobs:
+        fontes[j["fonte"]] = fontes.get(j["fonte"], 0) + 1
+    for fonte, total in fontes.items():
+        c.execute("INSERT INTO scrape_log (fonte, total) VALUES (?, ?)", (fonte, total))
+
+    conn.commit()
+    conn.close()
+    print(f"💾 {inseridos} novas vagas salvas no banco")
+    return inseridos
+
+def carregar_jobs_db(fonte="", q="", senioridade="") -> list:
+    """Carrega vagas do banco com filtros opcionais."""
+    conn = get_db()
+    c = conn.cursor()
+
+    sql = """
+        SELECT j.id, j.titulo, j.empresa, j.url, j.fonte,
+               j.data, j.salario, j.senioridade,
+               GROUP_CONCAT(t.tag, '|||') as tags_raw
+        FROM jobs j
+        LEFT JOIN jobs_tags t ON t.job_id = j.id
+        WHERE 1=1
+    """
+    params = []
+    if fonte:
+        sql += " AND j.fonte = ?"
+        params.append(fonte)
+    if senioridade:
+        sql += " AND j.senioridade = ?"
+        params.append(senioridade)
+    if q:
+        sql += " AND (j.titulo LIKE ? OR j.empresa LIKE ?)"
+        params += [f"%{q}%", f"%{q}%"]
+
+    sql += " GROUP BY j.id ORDER BY j.coletado_em DESC LIMIT 200"
+
+    rows = c.execute(sql, params).fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        tags = [t for t in (row["tags_raw"] or "").split("|||") if t]
+        result.append({
+            "titulo":      row["titulo"],
+            "empresa":     row["empresa"] or "—",
+            "url":         row["url"],
+            "fonte":       row["fonte"],
+            "data":        row["data"] or "",
+            "salario":     row["salario"] or "—",
+            "senioridade": row["senioridade"] or "Pleno",
+            "tags":        tags,
+        })
+    return result
+
+def stats_db() -> dict:
+    """Calcula métricas direto do banco."""
+    conn = get_db()
+    c = conn.cursor()
+
+    total = c.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+
+    fontes = {}
+    for row in c.execute("SELECT fonte, COUNT(*) as n FROM jobs GROUP BY fonte"):
+        fontes[row["fonte"]] = row["n"]
+
+    sen_count = {}
+    for row in c.execute("SELECT senioridade, COUNT(*) as n FROM jobs GROUP BY senioridade"):
+        sen_count[row["senioridade"]] = row["n"]
+
+    top_tags = []
+    for row in c.execute("""
+        SELECT tag, COUNT(*) as n FROM jobs_tags
+        GROUP BY tag ORDER BY n DESC LIMIT 8
+    """):
+        top_tags.append({"tag": row["tag"], "count": row["n"]})
+
+    conn.close()
+    return {"total": total, "fontes": fontes, "senioridades": sen_count, "top_tags": top_tags}
+
+# ─── Cache leve (evita bater o DB a cada request) ────────────────────────────
+_last_scrape = 0
 
 # ─── Scraping ────────────────────────────────────────────────────────────────
 HEADERS = {
@@ -297,11 +457,13 @@ def get_all_jobs():
 
 
 def refresh_cache():
-    global _cache
-    if time.time() - _cache["ts"] > CACHE_TTL or not _cache["jobs"]:
-        print("🔄 Atualizando cache...")
-        _cache["jobs"] = get_all_jobs()
-        _cache["ts"]   = time.time()
+    """Roda scraping se passou o TTL; salva novas vagas no banco."""
+    global _last_scrape
+    if time.time() - _last_scrape > CACHE_TTL:
+        print("🔄 Executando scraping...")
+        jobs = get_all_jobs()
+        salvar_jobs(jobs)
+        _last_scrape = time.time()
 
 
 # ─── Auth decorator ──────────────────────────────────────────────────────────
@@ -320,7 +482,13 @@ def login():
     d = request.get_json()
     email = (d.get("email") or "").strip().lower()
     senha = d.get("senha") or ""
-    if USERS.get(email) == senha:
+    conn  = get_db()
+    user  = conn.execute(
+        "SELECT * FROM users WHERE email=? AND senha_hash=?",
+        (email, hash_senha(senha))
+    ).fetchone()
+    conn.close()
+    if user:
         session["user"] = email
         return jsonify({"ok": True, "user": email})
     return jsonify({"ok": False, "error": "Credenciais inválidas"}), 401
@@ -343,38 +511,17 @@ def me():
 @login_required
 def jobs():
     refresh_cache()
-    result = _cache["jobs"]
-    fonte = request.args.get("fonte", "").strip()
-    q     = request.args.get("q", "").strip().lower()
-    if fonte:
-        result = [j for j in result if j["fonte"] == fonte]
-    if q:
-        result = [j for j in result
-                  if q in j["titulo"].lower() or q in j["empresa"].lower()]
-    return jsonify(result)
+    fonte      = request.args.get("fonte", "").strip()
+    q          = request.args.get("q", "").strip().lower()
+    senioridade= request.args.get("senioridade", "").strip()
+    return jsonify(carregar_jobs_db(fonte=fonte, q=q, senioridade=senioridade))
 
 
 @app.route("/api/stats")
 @login_required
 def stats():
     refresh_cache()
-    jobs_list = _cache["jobs"]
-    fontes = {}
-    tag_count = {}
-    sen_count = {}
-    for j in jobs_list:
-        fontes[j["fonte"]] = fontes.get(j["fonte"], 0) + 1
-        for t in j["tags"]:
-            tag_count[t] = tag_count.get(t, 0) + 1
-        s = j.get("senioridade", "Pleno")
-        sen_count[s] = sen_count.get(s, 0) + 1
-    top_tags = sorted(tag_count.items(), key=lambda x: x[1], reverse=True)[:8]
-    return jsonify({
-        "total":        len(jobs_list),
-        "fontes":       fontes,
-        "senioridades": sen_count,
-        "top_tags":     [{"tag": t, "count": c} for t, c in top_tags],
-    })
+    return jsonify(stats_db())
 
 
 # ─── Rota principal: serve o frontend ────────────────────────────────────────
@@ -814,5 +961,6 @@ window.addEventListener("load", async ()=>{
 </html>"""
 
 if __name__ == "__main__":
+    init_db()
     print("🚀 TechPulse Jobs rodando em http://localhost:5000")
     app.run(debug=True, port=5000)
