@@ -76,7 +76,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("✅ Banco inicializado em", DB_PATH)
+    print("Banco inicializado em", DB_PATH)
 
 def salvar_jobs(jobs: list):
     """Insere vagas novas no banco (ignora duplicatas pela URL)."""
@@ -452,7 +452,7 @@ def get_all_jobs():
             "salario": (j.get("salario") or "—").strip(),
             "senioridade": detect_seniority(titulo),
         })
-    print(f"✅ {len(cleaned)} vagas coletadas")
+    print(f"{len(cleaned)} vagas coletadas")
     return cleaned
 
 
